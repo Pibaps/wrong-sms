@@ -59,12 +59,15 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function dealCards(deck, count) {
+    // Créer une copie pour ne pas modifier l'original
+    const deckCopy = [...deck]
     const cards = []
-    for (let i = 0; i < count && deck.length > 0; i++) {
-      const randomIndex = Math.floor(Math.random() * deck.length)
-      cards.push(deck.splice(randomIndex, 1)[0])
+    for (let i = 0; i < count && deckCopy.length > 0; i++) {
+      const randomIndex = Math.floor(Math.random() * deckCopy.length)
+      cards.push(deckCopy.splice(randomIndex, 1)[0])
     }
-    return cards
+    // Retourner à la fois les cartes et le deck restant
+    return { cards, remaining: deckCopy }
   }
 
   // Actions
@@ -187,14 +190,18 @@ export const useGameStore = defineStore('game', () => {
     // Deal cards to all players
     const deckRemaining = { ...room.value.deckRemaining }
     const updates = {}
+    let cardsUsed = 0
 
     for (const pId of players) {
-      const hand = dealCards(deckRemaining.reponses, 7)
-      updates[`players/${pId}/hand`] = hand
+      const result = dealCards(deckRemaining.reponses, 7)
+      updates[`players/${pId}/hand`] = result.cards
+      deckRemaining.reponses = result.remaining
     }
 
     // Pick first SMS
-    const firstSms = deckRemaining.sms.splice(Math.floor(Math.random() * deckRemaining.sms.length), 1)[0]
+    const smsResult = dealCards(deckRemaining.sms, 1)
+    const firstSms = smsResult.cards[0]
+    deckRemaining.sms = smsResult.remaining
 
     await update(dbRef(db, `rooms/${roomCode.value}`), {
       ...updates,
@@ -252,8 +259,9 @@ export const useGameStore = defineStore('game', () => {
     for (const [pId, player] of Object.entries(room.value.players)) {
       if (player.hand.length < 7) {
         const needed = 7 - player.hand.length
-        const newCards = dealCards(deckRemaining.reponses, needed)
-        updates[`players/${pId}/hand`] = [...player.hand, ...newCards]
+        const result = dealCards(deckRemaining.reponses, needed)
+        updates[`players/${pId}/hand`] = [...player.hand, ...result.cards]
+        deckRemaining.reponses = result.remaining
       }
       updates[`players/${pId}/playedCard`] = null
     }
@@ -262,7 +270,9 @@ export const useGameStore = defineStore('game', () => {
     if (deckRemaining.sms.length === 0) {
       deckRemaining.sms = [...room.value.deck.sms]
     }
-    const newSms = deckRemaining.sms.splice(Math.floor(Math.random() * deckRemaining.sms.length), 1)[0]
+    const smsResult = dealCards(deckRemaining.sms, 1)
+    const newSms = smsResult.cards[0]
+    deckRemaining.sms = smsResult.remaining
 
     await update(dbRef(db, `rooms/${roomCode.value}`), {
       ...updates,
