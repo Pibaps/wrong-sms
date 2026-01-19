@@ -36,7 +36,9 @@ export const useGameStore = defineStore('game', () => {
   const allPlayersPlayed = computed(() => {
     if (!room.value?.players) return false
     const players = Object.entries(room.value.players).filter(([id]) => id !== room.value.currentJudge)
-    return players.every(([, player]) => player.playedCard !== null)
+    // Ensure we have at least one non-judge player
+    if (players.length === 0) return false
+    return players.every(([, player]) => player.playedCard !== null && player.playedCard !== undefined && player.playedCard !== '')
   })
 
   // Helper functions
@@ -310,6 +312,11 @@ export const useGameStore = defineStore('game', () => {
   }
 
   async function revealCards() {
+    // Security check: ensure all non-judge players have played
+    if (!allPlayersPlayed.value) {
+      return
+    }
+    
     // Create shuffled array of played cards with player IDs
     const playedCards = Object.entries(room.value.players)
       .filter(([id, player]) => id !== room.value.currentJudge && player.playedCard)

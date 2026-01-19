@@ -37,8 +37,8 @@
         </button>
       </div>
 
-      <!-- Current SMS Card -->
-      <div class="bg-gray-900 rounded-2xl p-6 shadow-lg">
+      <!-- Current SMS Card - Only show if player hasn't played yet -->
+      <div v-if="!gameStore.isJudge && !gameStore.currentPlayer?.playedCard" class="bg-gray-900 rounded-2xl p-6 shadow-lg">
         <div class="flex flex-col space-y-2">
           <div class="flex items-center space-x-2 mb-2">
             <div class="w-2 h-2 bg-green-400 rounded-full"></div>
