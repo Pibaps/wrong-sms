@@ -13,7 +13,6 @@ export const useGameStore = defineStore('game', () => {
   const gameState = ref('home') // home, lobby, playing, results
   const room = ref(null)
   const currentPlayer = ref(null)
-  const winnerReveal = ref(null) // Pour afficher le gagnant de la manche
 
   // Computed
   const isJudge = computed(() => {
@@ -103,6 +102,7 @@ export const useGameStore = defineStore('game', () => {
       },
       playedCards: [],
       round: 0,
+      winnerReveal: null,
     }
 
     await set(dbRef(db, `rooms/${code}`), roomData)
@@ -241,12 +241,14 @@ export const useGameStore = defineStore('game', () => {
     const winnerId = winningCard.playerId
     const winner = room.value.players[winnerId]
 
-    // Show winner reveal
-    winnerReveal.value = {
-      playerName: winner.name,
-      card: winningCard.text,
-      playerId: winnerId
-    }
+    // Show winner reveal to everyone
+    await update(dbRef(db, `rooms/${roomCode.value}`), {
+      winnerReveal: {
+        playerName: winner.name,
+        card: winningCard.text,
+        playerId: winnerId
+      }
+    })
 
     // Update score
     const newScore = (winner.score || 0) + 1
@@ -256,7 +258,9 @@ export const useGameStore = defineStore('game', () => {
 
     // Next round after delay
     await new Promise(resolve => setTimeout(resolve, 4000))
-    winnerReveal.value = null
+    await update(dbRef(db, `rooms/${roomCode.value}`), {
+      winnerReveal: null
+    })
     await nextRound(winnerId)
   }
 
@@ -339,7 +343,6 @@ export const useGameStore = defineStore('game', () => {
     gameState.value = 'home'
     room.value = null
     currentPlayer.value = null
-    winnerReveal.value = null
   }
 
   async function rejoinRoom() {
@@ -404,7 +407,6 @@ export const useGameStore = defineStore('game', () => {
     gameState,
     room,
     currentPlayer,
-    winnerReveal,
     
     // Computed
     isJudge,

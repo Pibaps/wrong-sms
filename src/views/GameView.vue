@@ -2,15 +2,16 @@
   <div class="min-h-screen flex flex-col p-4 pb-safe">
     <!-- Winner Reveal Overlay -->
     <div
-      v-if="gameStore.winnerReveal"
+      v-if="gameStore.room?.winnerReveal"
       class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
     >
       <div class="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500 rounded-2xl p-8 max-w-md w-full text-center space-y-4 animate-pulse">
         <div class="text-5xl">🏆</div>
-        <h2 class="text-2xl font-bold text-yellow-400">{{ gameStore.winnerReveal.playerName }} gagne !</h2>
-        <div class="bg-white text-gray-900 rounded-xl p-6 shadow-lg">
-          <p class="text-sm text-gray-500 mb-2">Réponse gagnante :</p>
-          <p class="text-lg font-medium">{{ gameStore.winnerReveal.card }}</p>
+        <h2 class="text-2xl font-bold text-yellow-400">{{ gameStore.room.winnerReveal.playerName }} gagne !</h2>
+        <div class="bg-gray-900 rounded-2xl p-4">
+          <div class="card-sms card-sms-sent mx-auto">
+            <p class="text-base font-medium">{{ gameStore.room.winnerReveal.card }}</p>
+          </div>
         </div>
         <p class="text-sm text-gray-400">Prochaine manche dans un instant...</p>
       </div>
@@ -63,24 +64,38 @@
         <div v-if="allPlayed && !gameStore.room?.playedCards?.length" class="mb-4">
           <button
             @click="revealCards"
+            :disabled="!allPlayed"
             class="btn btn-primary w-full"
           >
             Révéler les réponses
           </button>
         </div>
 
-        <!-- Played Cards (Judge Selection) -->
+        <!-- Played Cards (Judge Selection) with SMS conversation style -->
         <div v-if="gameStore.room?.playedCards?.length" class="space-y-3">
-          <p class="text-sm text-gray-400 mb-3">Réponses proposées :</p>
-          <div class="bg-gray-900 rounded-2xl p-4 space-y-3">
-            <div
-              v-for="(card, index) in gameStore.room.playedCards"
-              :key="index"
-              @click="selectWinner(index)"
-              class="cursor-pointer transition-all hover:scale-102"
-            >
-              <div class="card-sms card-sms-sent">
-                <p class="text-base">{{ card.text }}</p>
+          <p class="text-sm text-gray-400 mb-3">Cliquez sur la meilleure réponse :</p>
+          <div class="bg-gray-900 rounded-2xl p-4 space-y-4">
+            <!-- Original SMS -->
+            <div class="flex flex-col">
+              <div class="card-sms card-sms-received">
+                <p class="text-base">{{ gameStore.room?.currentSms }}</p>
+              </div>
+            </div>
+            
+            <!-- All responses with different colors -->
+            <div class="space-y-3 pl-4">
+              <div
+                v-for="(card, index) in gameStore.room.playedCards"
+                :key="index"
+                @click="selectWinner(index)"
+                class="cursor-pointer transition-all hover:scale-105"
+              >
+                <div 
+                  class="card-sms card-sms-sent"
+                  :style="{ backgroundColor: getResponseColor(index) }"
+                >
+                  <p class="text-base">{{ card.text }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -106,34 +121,36 @@
 
       <!-- Player View -->
       <div v-else>
-        <!-- Already Played -->
-        <div v-if="gameStore.currentPlayer?.playedCard" class="bg-green-500/10 border border-green-500 rounded-lg p-4 mb-4">
-          <p class="text-green-400 font-medium">Réponse envoyée</p>
-          <p class="text-sm text-gray-400 mt-1">En attente du choix du juge...</p>
-          <div class="mt-3 bg-gray-900 rounded-2xl p-4">
-            <div class="card-sms card-sms-sent">
-              <p class="text-sm">{{ gameStore.currentPlayer.playedCard }}</p>
+        <!-- Already Played - Show as conversation -->
+        <div v-if="gameStore.currentPlayer?.playedCard" class="space-y-3">
+          <div class="bg-green-500/10 border border-green-500 rounded-lg p-3 mb-2">
+            <p class="text-green-400 text-sm font-medium">✓ Réponse envoyée - En attente du juge...</p>
+          </div>
+          <div class="bg-gray-900 rounded-2xl p-4 space-y-3">
+            <div class="card-sms card-sms-received">
+              <p class="text-base">{{ gameStore.room?.currentSms }}</p>
+            </div>
+            <div class="pl-4">
+              <div class="card-sms card-sms-sent">
+                <p class="text-base">{{ gameStore.currentPlayer.playedCard }}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Player Hand -->
+        <!-- Player Hand as SMS bubbles -->
         <div v-else class="space-y-3">
-          <p class="text-sm text-gray-400">Votre main :</p>
-          <div class="grid grid-cols-2 gap-3">
+          <p class="text-sm text-gray-400 mb-2">Choisissez votre réponse :</p>
+          <div class="bg-gray-900 rounded-2xl p-4 space-y-3">
             <div
               v-for="(card, index) in gameStore.currentPlayer?.hand"
               :key="index"
               @click="playCard(index)"
-              class="card-hand card-hand-hover"
+              class="cursor-pointer transition-all hover:scale-102"
             >
-              <div class="absolute top-2 left-2 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                {{ index + 1 }}
-              </div>
-              <div class="flex-1 flex items-center justify-center p-4">
+              <div class="card-sms card-sms-sent">
                 <p class="text-sm leading-snug">{{ card }}</p>
               </div>
-              <div class="absolute bottom-0 left-0 right-0 h-1 bg-accent"></div>
             </div>
           </div>
         </div>
@@ -190,6 +207,22 @@ const nonJudgePlayers = computed(() => {
 })
 
 const allPlayed = computed(() => gameStore.allPlayersPlayed)
+
+// Colors for different responses
+const responseColors = [
+  '#3b82f6', // blue
+  '#10b981', // green
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#f97316', // orange
+]
+
+function getResponseColor(index) {
+  return responseColors[index % responseColors.length]
+}
 
 // Watch for game end
 watch(() => gameStore.gameState, (newState) => {
