@@ -106,6 +106,11 @@ export const useGameStore = defineStore('game', () => {
     }
 
     await set(dbRef(db, `rooms/${code}`), roomData)
+    
+    // Save to localStorage for persistence
+    localStorage.setItem('currentRoomCode', code)
+    localStorage.setItem('isHost', 'true')
+    
     listenToRoom(code)
     gameState.value = 'lobby'
   }
@@ -139,6 +144,10 @@ export const useGameStore = defineStore('game', () => {
       playedCard: null,
       ready: true,
     })
+
+    // Save to localStorage for persistence
+    localStorage.setItem('currentRoomCode', upperCode)
+    localStorage.setItem('isHost', 'false')
 
     listenToRoom(upperCode)
     gameState.value = 'lobby'
@@ -321,12 +330,69 @@ export const useGameStore = defineStore('game', () => {
       }
     }
     
+    // Clear localStorage
+    localStorage.removeItem('currentRoomCode')
+    localStorage.removeItem('isHost')
+    
     roomCode.value = ''
     isHost.value = false
     gameState.value = 'home'
     room.value = null
     currentPlayer.value = null
     winnerReveal.value = null
+  }
+
+  async function rejoinRoom() {
+    const savedRoomCode = localStorage.getItem('currentRoomCode')
+    const savedIsHost = localStorage.getItem('isHost') === 'true'
+    
+    if (!savedRoomCode) return false
+    
+    try {
+      const roomRef = dbRef(db, `rooms/${savedRoomCode}`)
+      const snapshot = await get(roomRef)
+      
+      if (!snapshot.exists()) {
+        // Room doesn't exist anymore, clear storage
+        localStorage.removeItem('currentRoomCode')
+        localStorage.removeItem('isHost')
+        return false
+      }
+      
+      const roomData = snapshot.val()
+      
+      // Check if player still exists in room
+      if (!roomData.players[playerId.value]) {
+        // Re-add player
+        await set(dbRef(db, `rooms/${savedRoomCode}/players/${playerId.value}`), {
+          name: playerName.value,
+          score: 0,
+          hand: [],
+          playedCard: null,
+          ready: true,
+        })
+      }
+      
+      roomCode.value = savedRoomCode
+      isHost.value = savedIsHost
+      listenToRoom(savedRoomCode)
+      
+      // Set correct game state
+      if (roomData.gameState === 'playing') {
+        gameState.value = 'playing'
+      } else if (roomData.gameState === 'results') {
+        gameState.value = 'results'
+      } else {
+        gameState.value = 'lobby'
+      }
+      
+      return true
+    } catch (error) {
+      console.error('Error rejoining room:', error)
+      localStorage.removeItem('currentRoomCode')
+      localStorage.removeItem('isHost')
+      return false
+    }
   }
 
   return {
@@ -357,5 +423,6 @@ export const useGameStore = defineStore('game', () => {
     revealCards,
     endGame,
     leaveRoom,
+    rejoinRoom,
   }
 })

@@ -32,9 +32,17 @@
 
       <!-- Create/Join Options -->
       <div v-else class="space-y-4">
-        <div class="bg-secondary rounded-lg p-4">
-          <p class="text-sm text-gray-400 mb-1">Connecté en tant que</p>
-          <p class="font-medium">{{ gameStore.playerName }}</p>
+        <div class="bg-secondary rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-400 mb-1">Connecté en tant que</p>
+            <p class="font-medium">{{ gameStore.playerName }}</p>
+          </div>
+          <button
+            @click="editName"
+            class="text-accent hover:text-blue-400 text-sm"
+          >
+            Modifier
+          </button>
         </div>
 
         <div class="space-y-3">
@@ -87,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '@/stores/game'
 
@@ -100,9 +108,31 @@ const error = ref('')
 
 const hasName = computed(() => !!gameStore.playerName)
 
+onMounted(async () => {
+  // Try to rejoin existing room
+  if (gameStore.playerName) {
+    const rejoined = await gameStore.rejoinRoom()
+    if (rejoined) {
+      // Navigate to appropriate page
+      if (gameStore.gameState === 'playing') {
+        router.push('/game')
+      } else if (gameStore.gameState === 'results') {
+        router.push('/results')
+      } else if (gameStore.gameState === 'lobby') {
+        router.push('/lobby')
+      }
+    }
+  }
+})
+
 function saveName() {
   if (!name.value.trim()) return
   gameStore.setPlayerName(name.value.trim())
+}
+
+function editName() {
+  name.value = ''
+  gameStore.setPlayerName('')
 }
 
 async function createRoom() {

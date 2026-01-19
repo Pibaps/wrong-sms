@@ -36,6 +36,62 @@
     @apply hover:shadow-xl hover:scale-105 active:scale-95 cursor-pointer hover:border-accent;
   }
 
+  .card-sms {
+    @apply bg-gray-100 rounded-2xl shadow-sm transition-all duration-200;
+    padding: 12px 16px;
+    max-width: 85%;
+    position: relative;
+    word-wrap: break-word;
+  }
+
+  .card-sms::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -8px;
+    width: 20px;
+    height: 20px;
+    background: #f3f4f6;
+    border-bottom-right-radius: 16px;
+  }
+
+  .card-sms::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -10px;
+    width: 10px;
+    height: 20px;
+    background: #1a1a1a;
+    border-bottom-right-radius: 10px;
+  }
+
+  .card-sms-received {
+    @apply bg-gray-200 text-gray-900;
+    margin-right: auto;
+  }
+
+  .card-sms-sent {
+    @apply bg-blue-500 text-white;
+    margin-left: auto;
+  }
+
+  .card-sms-sent::before {
+    left: auto;
+    right: -8px;
+    background: #3b82f6;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 0;
+  }
+
+  .card-sms-sent::after {
+    left: auto;
+    right: -10px;
+    background: #1a1a1a;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 0;
+  }
+
   .card-hand {
     @apply bg-white text-gray-900 rounded-xl shadow-lg transition-all duration-200;
     aspect-ratio: 2.5/3.5;

@@ -38,11 +38,16 @@
       </div>
 
       <!-- Current SMS Card -->
-      <div class="bg-white text-gray-900 rounded-lg p-6 shadow-lg">
-        <p class="text-sm text-gray-500 mb-2">SMS reçu :</p>
-        <p class="text-lg font-medium leading-relaxed">
-          {{ gameStore.room?.currentSms }}
-        </p>
+      <div class="bg-gray-900 rounded-2xl p-6 shadow-lg">
+        <div class="flex flex-col space-y-2">
+          <div class="flex items-center space-x-2 mb-2">
+            <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+            <p class="text-xs text-gray-500">SMS reçu</p>
+          </div>
+          <div class="card-sms card-sms-received">
+            <p class="text-base leading-relaxed">{{ gameStore.room?.currentSms }}</p>
+          </div>
+        </div>
       </div>
 
       <!-- Judge View -->
@@ -66,14 +71,18 @@
 
         <!-- Played Cards (Judge Selection) -->
         <div v-if="gameStore.room?.playedCards?.length" class="space-y-3">
-          <p class="text-sm text-gray-400">Cliquez sur la réponse gagnante :</p>
-          <div
-            v-for="(card, index) in gameStore.room.playedCards"
-            :key="index"
-            @click="selectWinner(index)"
-            class="card card-hover"
-          >
-            <p class="text-base">{{ card.text }}</p>
+          <p class="text-sm text-gray-400 mb-3">Réponses proposées :</p>
+          <div class="bg-gray-900 rounded-2xl p-4 space-y-3">
+            <div
+              v-for="(card, index) in gameStore.room.playedCards"
+              :key="index"
+              @click="selectWinner(index)"
+              class="cursor-pointer transition-all hover:scale-102"
+            >
+              <div class="card-sms card-sms-sent">
+                <p class="text-base">{{ card.text }}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -99,10 +108,12 @@
       <div v-else>
         <!-- Already Played -->
         <div v-if="gameStore.currentPlayer?.playedCard" class="bg-green-500/10 border border-green-500 rounded-lg p-4 mb-4">
-          <p class="text-green-400 font-medium">Carte jouée</p>
+          <p class="text-green-400 font-medium">Réponse envoyée</p>
           <p class="text-sm text-gray-400 mt-1">En attente du choix du juge...</p>
-          <div class="mt-3 bg-white text-gray-900 rounded p-3">
-            <p class="text-sm">{{ gameStore.currentPlayer.playedCard }}</p>
+          <div class="mt-3 bg-gray-900 rounded-2xl p-4">
+            <div class="card-sms card-sms-sent">
+              <p class="text-sm">{{ gameStore.currentPlayer.playedCard }}</p>
+            </div>
           </div>
         </div>
 
