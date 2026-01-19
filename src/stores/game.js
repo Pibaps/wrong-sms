@@ -130,10 +130,7 @@ export const useGameStore = defineStore('game', () => {
       throw new Error('Room is full')
     }
 
-    if (roomData.gameState !== 'lobby') {
-      throw new Error('Game already started')
-    }
-
+    // Allow joining even if game started - will play next round
     roomCode.value = upperCode
     isHost.value = false
 
@@ -150,7 +147,7 @@ export const useGameStore = defineStore('game', () => {
     localStorage.setItem('isHost', 'false')
 
     listenToRoom(upperCode)
-    gameState.value = 'lobby'
+    gameState.value = roomData.gameState === 'playing' ? 'playing' : 'lobby'
   }
 
   function listenToRoom(code) {
@@ -267,10 +264,25 @@ export const useGameStore = defineStore('game', () => {
   async function nextRound(newJudge) {
     const deckRemaining = { ...room.value.deckRemaining }
     
-    // Deal cards to refill hands
+    // Get all current players
+    const currentPlayers = Object.keys(room.value.players)
+    
+    // Check if we still have enough players
+    if (currentPlayers.length < 3) {
+      // Not enough players, end game
+      await endGame()
+      return
+    }
+    
+    // Deal cards to refill hands for all players
     const updates = {}
     for (const [pId, player] of Object.entries(room.value.players)) {
-      if (player.hand.length < 7) {
+      // New player joining mid-game gets full hand
+      if (!player.hand || player.hand.length === 0) {
+        const result = dealCards(deckRemaining.reponses, 7)
+        updates[`players/${pId}/hand`] = result.cards
+        deckRemaining.reponses = result.remaining
+      } else if (player.hand.length < 7) {
         const needed = 7 - player.hand.length
         const result = dealCards(deckRemaining.reponses, needed)
         updates[`players/${pId}/hand`] = [...player.hand, ...result.cards]
@@ -326,11 +338,29 @@ export const useGameStore = defineStore('game', () => {
 
   async function leaveRoom() {
     if (roomCode.value && playerId.value) {
+      // Remove player from room
       await remove(dbRef(db, `rooms/${roomCode.value}/players/${playerId.value}`))
       
-      // If host leaves, delete room
+      // If host leaves, transfer host to another player or delete room
       if (isHost.value) {
-        await remove(dbRef(db, `rooms/${roomCode.value}`))
+        const roomRef = dbRef(db, `rooms/${roomCode.value}`)
+        const snapshot = await get(roomRef)
+        
+        if (snapshot.exists()) {
+          const roomData = snapshot.val()
+          const remainingPlayers = Object.keys(roomData.players || {})
+          
+          if (remainingPlayers.length > 0) {
+            // Transfer host to first remaining player
+            const newHost = remainingPlayers[0]
+            await update(dbRef(db, `rooms/${roomCode.value}`), {
+              host: newHost,
+            })
+          } else {
+            // No players left, delete room
+            await remove(dbRef(db, `rooms/${roomCode.value}`))
+          }
+        }
       }
     }
     
@@ -366,18 +396,21 @@ export const useGameStore = defineStore('game', () => {
       
       // Check if player still exists in room
       if (!roomData.players[playerId.value]) {
-        // Re-add player
-        await set(dbRef(db, `rooms/${savedRoomCode}/players/${playerId.value}`), {
+        // Re-add player with proper state
+        const playerData = {
           name: playerName.value,
           score: 0,
           hand: [],
           playedCard: null,
           ready: true,
-        })
+        }
+        
+        // If game is in progress, player will get cards next round
+        await set(dbRef(db, `rooms/${savedRoomCode}/players/${playerId.value}`), playerData)
       }
       
       roomCode.value = savedRoomCode
-      isHost.value = savedIsHost
+      isHost.value = roomData.host === playerId.value // Update host status based on room data
       listenToRoom(savedRoomCode)
       
       // Set correct game state

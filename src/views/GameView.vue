@@ -26,15 +26,14 @@
           </div>
           <div>
             <p class="font-medium text-sm">{{ gameStore.playerName }}</p>
-            <p class="text-xs text-gray-500">Manche {{ gameStore.room?.round }}</p>
+            <p class="text-xs text-gray-500">Manche {{ gameStore.room?.round }} • {{ playerCount }} joueurs</p>
           </div>
         </div>
         <button
-          v-if="gameStore.isHost"
-          @click="endGame"
+          @click="leave"
           class="text-sm text-red-400 hover:text-red-300"
         >
-          Terminer
+          Quitter
         </button>
       </div>
 
@@ -121,11 +120,8 @@
 
       <!-- Player View -->
       <div v-else>
-        <!-- Already Played - Show as conversation -->
+        <!-- Already Played - Show as conversation only -->
         <div v-if="gameStore.currentPlayer?.playedCard" class="space-y-3">
-          <div class="bg-green-500/10 border border-green-500 rounded-lg p-3 mb-2">
-            <p class="text-green-400 text-sm font-medium">✓ Réponse envoyée - En attente du juge...</p>
-          </div>
           <div class="bg-gray-900 rounded-2xl p-4 space-y-3">
             <div class="card-sms card-sms-received">
               <p class="text-base">{{ gameStore.room?.currentSms }}</p>
@@ -136,6 +132,7 @@
               </div>
             </div>
           </div>
+          <p class="text-center text-sm text-gray-500">En attente du juge...</p>
         </div>
 
         <!-- Player Hand as SMS bubbles -->
@@ -158,7 +155,12 @@
 
       <!-- Scoreboard -->
       <div class="bg-secondary rounded-lg p-4 mt-6">
-        <h3 class="text-sm font-semibold mb-3 text-gray-400">Scores</h3>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-gray-400">Scores</h3>
+          <div class="text-xs text-gray-500">
+            Code: <span class="font-mono font-bold text-accent">{{ gameStore.roomCode }}</span>
+          </div>
+        </div>
         <div class="space-y-2">
           <div
             v-for="player in sortedPlayers"
@@ -245,9 +247,10 @@ async function selectWinner(index) {
   await gameStore.selectWinner(index)
 }
 
-function endGame() {
-  if (confirm('Terminer la partie et afficher les résultats ?')) {
-    gameStore.endGame()
+function leave() {
+  if (confirm('Voulez-vous vraiment quitter la partie ?')) {
+    gameStore.leaveRoom()
+    router.push('/')
   }
 }
 </script>

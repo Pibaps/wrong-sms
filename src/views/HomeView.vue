@@ -149,14 +149,12 @@ async function joinRoom() {
   try {
     error.value = ''
     await gameStore.joinRoom(joinCode.value)
-    router.push('/lobby')
+    router.push(gameStore.gameState === 'playing' ? '/game' : '/lobby')
   } catch (err) {
     if (err.message === 'Room not found') {
       error.value = 'Cette partie n\'existe pas'
     } else if (err.message === 'Room is full') {
       error.value = 'Cette partie est complète'
-    } else if (err.message === 'Game already started') {
-      error.value = 'Cette partie a déjà commencé'
     } else {
       error.value = 'Erreur lors de la connexion'
     }
