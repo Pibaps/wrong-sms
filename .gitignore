@@ -34,3 +34,6 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# Data sources examples
+datasourcesexemples/
