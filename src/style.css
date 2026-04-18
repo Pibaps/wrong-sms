@@ -3,20 +3,36 @@
 @tailwind utilities;
 
 @layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
   * {
     -webkit-tap-highlight-color: transparent;
   }
   
   body {
-    @apply bg-primary text-white;
+    @apply bg-primary text-white overflow-hidden;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
+  #app {
+    min-height: 100dvh;
+  }
+
   input, select, textarea {
     @apply text-base;
     font-size: 16px; /* Évite le zoom automatique sur iOS */
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
 

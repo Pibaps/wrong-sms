@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center p-4">
-    <div class="w-full max-w-md space-y-8">
+  <div class="min-h-dvh overflow-hidden flex flex-col items-center justify-center px-3 py-3 sm:px-4 sm:py-4">
+    <div class="w-full max-w-md space-y-6 sm:space-y-8">
       <!-- Logo/Title -->
       <div class="text-center space-y-2">
-        <h1 class="text-4xl font-bold tracking-tight">Wrong SMS</h1>
+        <h1 class="text-[clamp(2.4rem,8vw,4rem)] font-bold tracking-tight leading-none">Wrong SMS</h1>
         <p class="text-gray-400 text-sm">Le jeu de cartes qui fait mal</p>
       </div>
 
@@ -87,7 +87,7 @@
       </div>
 
       <!-- Footer -->
-      <div class="text-center text-xs text-gray-600 pt-8">
+      <div class="text-center text-xs text-gray-600 pt-2 sm:pt-6">
         <p>Jouez entre 3 et 10 joueurs</p>
       </div>
     </div>

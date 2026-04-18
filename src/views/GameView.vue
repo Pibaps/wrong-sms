@@ -1,27 +1,27 @@
 <template>
-  <div class="min-h-screen flex flex-col p-4 pb-safe">
+  <div class="min-h-dvh overflow-hidden flex flex-col px-3 py-3 sm:px-4 sm:py-4 pb-safe">
     <!-- Winner Reveal Overlay -->
     <div
       v-if="gameStore.room?.winnerReveal"
       class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
     >
-      <div class="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500 rounded-2xl p-8 max-w-md w-full text-center space-y-4 animate-pulse">
-        <div class="text-5xl">🏆</div>
-        <h2 class="text-2xl font-bold text-yellow-400">{{ gameStore.room.winnerReveal.playerName }} gagne !</h2>
+      <div class="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500 rounded-2xl p-6 sm:p-8 max-w-md w-full text-center space-y-4 animate-pulse">
+        <div class="text-4xl sm:text-5xl">🏆</div>
+        <h2 class="text-xl sm:text-2xl font-bold text-yellow-400">{{ gameStore.room.winnerReveal.playerName }} gagne !</h2>
         <div class="bg-gray-900 rounded-2xl p-4">
           <div class="card-sms card-sms-sent mx-auto">
-            <p class="text-base font-medium">{{ gameStore.room.winnerReveal.card }}</p>
+            <p class="text-sm sm:text-base font-medium">{{ gameStore.room.winnerReveal.card }}</p>
           </div>
         </div>
         <p class="text-sm text-gray-400">Prochaine manche dans un instant...</p>
       </div>
     </div>
 
-    <div class="w-full max-w-4xl mx-auto space-y-4 py-4">
+    <div class="w-full max-w-4xl mx-auto flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 py-0 sm:py-1">
       <!-- Header with Player Info -->
-      <div class="flex items-center justify-between bg-secondary rounded-lg p-4">
+      <div class="flex items-center justify-between bg-secondary rounded-2xl p-3 sm:p-4 shrink-0">
         <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center font-bold text-sm">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-accent flex items-center justify-center font-bold text-sm shrink-0">
             {{ gameStore.playerName.charAt(0).toUpperCase() }}
           </div>
           <div>
@@ -38,21 +38,21 @@
       </div>
 
       <!-- Current SMS Card - Only show if player hasn't played yet -->
-      <div v-if="!gameStore.isJudge && !gameStore.currentPlayer?.playedCard" class="bg-gray-900 rounded-2xl p-6 shadow-lg">
+      <div v-if="!gameStore.isJudge && !gameStore.currentPlayer?.playedCard" class="bg-gray-900 rounded-2xl p-4 sm:p-5 shadow-lg shrink-0">
         <div class="flex flex-col space-y-2">
           <div class="flex items-center space-x-2 mb-2">
             <div class="w-2 h-2 bg-green-400 rounded-full"></div>
             <p class="text-xs text-gray-500">SMS reçu</p>
           </div>
           <div class="card-sms card-sms-received">
-            <p class="text-base leading-relaxed">{{ gameStore.room?.currentSms }}</p>
+            <p class="text-sm sm:text-base leading-relaxed">{{ gameStore.room?.currentSms }}</p>
           </div>
         </div>
       </div>
 
       <!-- Judge View -->
-      <div v-if="gameStore.isJudge">
-        <div class="bg-accent/10 border border-accent rounded-lg p-4 mb-4">
+      <div v-if="gameStore.isJudge" class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <div class="bg-accent/10 border border-accent rounded-2xl p-3 sm:p-4 shrink-0">
           <p class="text-accent font-medium">Vous êtes le juge</p>
           <p class="text-sm text-gray-400 mt-1">
             {{ allPlayed ? 'Tous les joueurs ont répondu' : 'En attente des réponses...' }}
@@ -60,7 +60,7 @@
         </div>
 
         <!-- Reveal Button -->
-        <div v-if="allPlayed && !gameStore.room?.playedCards?.length" class="mb-4">
+        <div v-if="allPlayed && !gameStore.room?.playedCards?.length" class="shrink-0">
           <button
             @click="revealCards"
             :disabled="!allPlayed"
@@ -71,29 +71,29 @@
         </div>
 
         <!-- Played Cards (Judge Selection) with SMS conversation style -->
-        <div v-if="gameStore.room?.playedCards?.length" class="space-y-3">
-          <p class="text-sm text-gray-400 mb-3">Cliquez sur la meilleure réponse :</p>
-          <div class="bg-gray-900 rounded-2xl p-4 space-y-4">
+        <div v-if="gameStore.room?.playedCards?.length" class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+          <p class="text-sm text-gray-400 shrink-0">Cliquez sur la meilleure réponse :</p>
+          <div class="bg-gray-900 rounded-2xl p-3 sm:p-4 space-y-3 sm:space-y-4 flex-1 min-h-0 overflow-hidden">
             <!-- Original SMS -->
-            <div class="flex flex-col">
+            <div class="flex flex-col shrink-0">
               <div class="card-sms card-sms-received">
-                <p class="text-base">{{ gameStore.room?.currentSms }}</p>
+                <p class="text-sm sm:text-base">{{ gameStore.room?.currentSms }}</p>
               </div>
             </div>
             
             <!-- All responses with different colors -->
-            <div class="space-y-3 pl-4">
+            <div class="space-y-2 sm:space-y-3 pl-2 sm:pl-4 flex-1 min-h-0 overflow-y-auto pr-1">
               <div
                 v-for="(card, index) in gameStore.room.playedCards"
                 :key="index"
                 @click="selectWinner(index)"
-                class="cursor-pointer transition-all hover:scale-105"
+                class="cursor-pointer transition-all hover:scale-[1.02]"
               >
                 <div 
                   class="card-sms card-sms-sent"
                   :style="{ backgroundColor: getResponseColor(index) }"
                 >
-                  <p class="text-base">{{ card.text }}</p>
+                  <p class="text-sm sm:text-base">{{ card.text }}</p>
                 </div>
               </div>
             </div>
@@ -101,11 +101,11 @@
         </div>
 
         <!-- Waiting for players -->
-        <div v-else-if="!allPlayed" class="space-y-2">
+        <div v-else-if="!allPlayed" class="space-y-2 flex-1 min-h-0 overflow-y-auto pr-1">
           <div
             v-for="player in nonJudgePlayers"
             :key="player.id"
-            class="bg-secondary rounded-lg p-4 flex items-center justify-between"
+            class="bg-secondary rounded-2xl p-3 sm:p-4 flex items-center justify-between"
           >
             <span>{{ player.name }}</span>
             <span v-if="player.playedCard" class="text-green-400">
@@ -119,16 +119,16 @@
       </div>
 
       <!-- Player View -->
-      <div v-else>
+      <div v-else class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <!-- Already Played - Show as conversation only -->
-        <div v-if="gameStore.currentPlayer?.playedCard" class="space-y-3">
-          <div class="bg-gray-900 rounded-2xl p-4 space-y-3">
+        <div v-if="gameStore.currentPlayer?.playedCard" class="space-y-3 shrink-0">
+          <div class="bg-gray-900 rounded-2xl p-3 sm:p-4 space-y-3">
             <div class="card-sms card-sms-received">
-              <p class="text-base">{{ gameStore.room?.currentSms }}</p>
+              <p class="text-sm sm:text-base">{{ gameStore.room?.currentSms }}</p>
             </div>
             <div class="pl-4">
               <div class="card-sms card-sms-sent">
-                <p class="text-base">{{ gameStore.currentPlayer.playedCard }}</p>
+                <p class="text-sm sm:text-base">{{ gameStore.currentPlayer.playedCard }}</p>
               </div>
             </div>
           </div>
@@ -136,14 +136,14 @@
         </div>
 
         <!-- Player Hand as SMS bubbles -->
-        <div v-else class="space-y-3">
-          <p class="text-sm text-gray-400 mb-2">Choisissez votre réponse :</p>
-          <div class="bg-gray-900 rounded-2xl p-4 space-y-3">
+        <div v-else class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+          <p class="text-sm text-gray-400 shrink-0">Choisissez votre réponse :</p>
+          <div class="bg-gray-900 rounded-2xl p-3 sm:p-4 space-y-2 sm:space-y-3 flex-1 min-h-0 overflow-y-auto pr-1">
             <div
               v-for="(card, index) in gameStore.currentPlayer?.hand"
               :key="index"
               @click="playCard(index)"
-              class="cursor-pointer transition-all hover:scale-102"
+              class="cursor-pointer transition-all hover:scale-[1.02]"
             >
               <div class="card-sms card-sms-sent">
                 <p class="text-sm leading-snug">{{ card }}</p>
@@ -154,18 +154,18 @@
       </div>
 
       <!-- Scoreboard -->
-      <div class="bg-secondary rounded-lg p-4 mt-6">
+      <div class="bg-secondary rounded-2xl p-3 sm:p-4 mt-1 shrink-0">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-sm font-semibold text-gray-400">Scores</h3>
           <div class="text-xs text-gray-500">
             Code: <span class="font-mono font-bold text-accent">{{ gameStore.roomCode }}</span>
           </div>
         </div>
-        <div class="space-y-2">
+        <div class="space-y-2 max-h-[18vh] overflow-y-auto pr-1">
           <div
             v-for="player in sortedPlayers"
             :key="player.id"
-            class="flex items-center justify-between"
+            class="flex items-center justify-between gap-3"
           >
             <div class="flex items-center space-x-2">
               <div
