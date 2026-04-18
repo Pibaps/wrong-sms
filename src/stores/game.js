@@ -102,6 +102,7 @@ export const useGameStore = defineStore('game', () => {
         sms: [...defaultDeck.sms],
         reponses: [...defaultDeck.reponses],
       },
+      usedSms: [],
       playedCards: [],
       round: 0,
       winnerReveal: null,
@@ -217,6 +218,7 @@ export const useGameStore = defineStore('game', () => {
       currentJudge: firstJudge,
       currentSms: firstSms,
       deckRemaining,
+      usedSms: [firstSms],
       round: 1,
     })
   }
@@ -227,9 +229,20 @@ export const useGameStore = defineStore('game', () => {
     const card = currentPlayer.value.hand[cardIndex]
     const newHand = currentPlayer.value.hand.filter((_, i) => i !== cardIndex)
 
-    await update(dbRef(db, `rooms/${roomCode.value}/players/${playerId.value}`), {
-      hand: newHand,
-      playedCard: card,
+    // Draw a new card if available
+    let deckRemaining = { ...room.value.deckRemaining }
+    let newCard = null
+    if (deckRemaining.reponses.length > 0) {
+      const result = dealCards(deckRemaining.reponses, 1)
+      newCard = result.cards[0]
+      deckRemaining.reponses = result.remaining
+      newHand.push(newCard)
+    }
+
+    await update(dbRef(db, `rooms/${roomCode.value}`), {
+      [`players/${playerId.value}/hand`]: newHand,
+      [`players/${playerId.value}/playedCard`]: card,
+      deckRemaining,
     })
   }
 
@@ -295,17 +308,21 @@ export const useGameStore = defineStore('game', () => {
 
     // Pick new SMS
     if (deckRemaining.sms.length === 0) {
-      deckRemaining.sms = [...room.value.deck.sms]
+      // No more unique SMS, end game
+      await endGame()
+      return
     }
     const smsResult = dealCards(deckRemaining.sms, 1)
     const newSms = smsResult.cards[0]
     deckRemaining.sms = smsResult.remaining
+    const newUsedSms = [...(room.value.usedSms || []), newSms]
 
     await update(dbRef(db, `rooms/${roomCode.value}`), {
       ...updates,
       currentJudge: newJudge,
       currentSms: newSms,
       deckRemaining,
+      usedSms: newUsedSms,
       playedCards: [],
       round: (room.value.round || 0) + 1,
     })
