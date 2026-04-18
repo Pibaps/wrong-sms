@@ -6,8 +6,16 @@ import { useGameStore } from '@/stores/game'
 const gameStore = useGameStore()
 const router = useRouter()
 
+function handleBeforeUnload() {
+  if (gameStore.roomCode) {
+    void gameStore.leaveRoom()
+  }
+}
+
 // On app load, try to rejoin existing room if reloading mid-game
 onMounted(async () => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+
   if (gameStore.playerName) {
     const rejoined = await gameStore.rejoinRoom()
     if (rejoined && router.currentRoute.value.path === '/') {
@@ -25,8 +33,10 @@ onMounted(async () => {
 
 // Cleanup on page unload
 onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+
   if (gameStore.roomCode) {
-    gameStore.leaveRoom()
+    void gameStore.leaveRoom()
   }
 })
 </script>

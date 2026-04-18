@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { db } from '@/firebase'
-import { ref as dbRef, set, onValue, push, remove, get, update } from 'firebase/database'
+import { ref as dbRef, set, onValue, remove, get, update } from 'firebase/database'
 import { defaultDeck } from '@/data/defaultDeck'
 
 export const useGameStore = defineStore('game', () => {
@@ -9,12 +9,19 @@ export const useGameStore = defineStore('game', () => {
   const playerName = ref(localStorage.getItem('playerName') || '')
   const playerId = ref(localStorage.getItem('playerId') || generateId())
   const roomCode = ref('')
-  const isHost = ref(false)
   const gameState = ref('home') // home, lobby, playing, results
   const room = ref(null)
   const currentPlayer = ref(null)
+  const isSubmittingPlay = ref(false)
+  const isRevealingCards = ref(false)
+  const isResolvingRound = ref(false)
+  let roomUnsubscribe = null
 
   // Computed
+  const isHost = computed(() => {
+    return !!room.value && room.value.host === playerId.value
+  })
+
   const isJudge = computed(() => {
     if (!room.value || !currentPlayer.value) return false
     return room.value.currentJudge === playerId.value
@@ -71,6 +78,13 @@ export const useGameStore = defineStore('game', () => {
     return { cards, remaining: deckCopy }
   }
 
+  function stopListeningToRoom() {
+    if (roomUnsubscribe) {
+      roomUnsubscribe()
+      roomUnsubscribe = null
+    }
+  }
+
   // Actions
   function setPlayerName(name) {
     playerName.value = name
@@ -81,7 +95,6 @@ export const useGameStore = defineStore('game', () => {
   async function createRoom() {
     const code = generateRoomCode()
     roomCode.value = code
-    isHost.value = true
 
     const roomData = {
       host: playerId.value,
@@ -109,10 +122,12 @@ export const useGameStore = defineStore('game', () => {
     }
 
     await set(dbRef(db, `rooms/${code}`), roomData)
+
+    room.value = roomData
+    currentPlayer.value = roomData.players[playerId.value]
     
     // Save to localStorage for persistence
     localStorage.setItem('currentRoomCode', code)
-    localStorage.setItem('isHost', 'true')
     
     listenToRoom(code)
     gameState.value = 'lobby'
@@ -135,27 +150,38 @@ export const useGameStore = defineStore('game', () => {
 
     // Allow joining even if game started - will play next round
     roomCode.value = upperCode
-    isHost.value = false
 
-    await set(dbRef(db, `rooms/${upperCode}/players/${playerId.value}`), {
+    const playerData = {
       name: playerName.value,
       score: 0,
       hand: [],
       playedCard: null,
       ready: true,
-    })
+    }
+
+    await set(dbRef(db, `rooms/${upperCode}/players/${playerId.value}`), playerData)
+
+    room.value = {
+      ...roomData,
+      players: {
+        ...roomData.players,
+        [playerId.value]: playerData,
+      },
+    }
+    currentPlayer.value = room.value.players[playerId.value]
 
     // Save to localStorage for persistence
     localStorage.setItem('currentRoomCode', upperCode)
-    localStorage.setItem('isHost', 'false')
 
     listenToRoom(upperCode)
     gameState.value = roomData.gameState === 'playing' ? 'playing' : 'lobby'
   }
 
   function listenToRoom(code) {
+    stopListeningToRoom()
+
     const roomRef = dbRef(db, `rooms/${code}`)
-    onValue(roomRef, (snapshot) => {
+    roomUnsubscribe = onValue(roomRef, (snapshot) => {
       if (snapshot.exists()) {
         room.value = snapshot.val()
         currentPlayer.value = room.value.players[playerId.value]
@@ -199,7 +225,6 @@ export const useGameStore = defineStore('game', () => {
     // Deal cards to all players
     const deckRemaining = { ...room.value.deckRemaining }
     const updates = {}
-    let cardsUsed = 0
 
     for (const pId of players) {
       const result = dealCards(deckRemaining.reponses, 7)
@@ -224,9 +249,10 @@ export const useGameStore = defineStore('game', () => {
   }
 
   async function playCard(cardIndex) {
-    if (isJudge.value || !currentPlayer.value) return
+    if (isJudge.value || !currentPlayer.value || isSubmittingPlay.value || currentPlayer.value.playedCard) return
 
     const card = currentPlayer.value.hand[cardIndex]
+    if (!card) return
     const newHand = currentPlayer.value.hand.filter((_, i) => i !== cardIndex)
 
     // Draw a new card if available
@@ -239,41 +265,53 @@ export const useGameStore = defineStore('game', () => {
       newHand.push(newCard)
     }
 
-    await update(dbRef(db, `rooms/${roomCode.value}`), {
-      [`players/${playerId.value}/hand`]: newHand,
-      [`players/${playerId.value}/playedCard`]: card,
-      deckRemaining,
-    })
+    isSubmittingPlay.value = true
+    try {
+      await update(dbRef(db, `rooms/${roomCode.value}`), {
+        [`players/${playerId.value}/hand`]: newHand,
+        [`players/${playerId.value}/playedCard`]: card,
+        deckRemaining,
+      })
+    } finally {
+      isSubmittingPlay.value = false
+    }
   }
 
   async function selectWinner(cardIndex) {
-    if (!isJudge.value) return
+    if (!isJudge.value || isResolvingRound.value || room.value?.winnerReveal) return
 
     const winningCard = room.value.playedCards[cardIndex]
+    if (!winningCard) return
     const winnerId = winningCard.playerId
     const winner = room.value.players[winnerId]
 
-    // Show winner reveal to everyone
-    await update(dbRef(db, `rooms/${roomCode.value}`), {
-      winnerReveal: {
-        playerName: winner.name,
-        card: winningCard.text,
-        playerId: winnerId
-      }
-    })
+    isResolvingRound.value = true
 
-    // Update score
-    const newScore = (winner.score || 0) + 1
-    await update(dbRef(db, `rooms/${roomCode.value}/players/${winnerId}`), {
-      score: newScore,
-    })
+    try {
+      // Show winner reveal to everyone
+      await update(dbRef(db, `rooms/${roomCode.value}`), {
+        winnerReveal: {
+          playerName: winner.name,
+          card: winningCard.text,
+          playerId: winnerId
+        }
+      })
 
-    // Next round after delay
-    await new Promise(resolve => setTimeout(resolve, 4000))
-    await update(dbRef(db, `rooms/${roomCode.value}`), {
-      winnerReveal: null
-    })
-    await nextRound(winnerId)
+      // Update score
+      const newScore = (winner.score || 0) + 1
+      await update(dbRef(db, `rooms/${roomCode.value}/players/${winnerId}`), {
+        score: newScore,
+      })
+
+      // Next round after delay
+      await new Promise(resolve => setTimeout(resolve, 4000))
+      await update(dbRef(db, `rooms/${roomCode.value}`), {
+        winnerReveal: null
+      })
+      await nextRound(winnerId)
+    } finally {
+      isResolvingRound.value = false
+    }
   }
 
   async function nextRound(newJudge) {
@@ -330,7 +368,7 @@ export const useGameStore = defineStore('game', () => {
 
   async function revealCards() {
     // Security check: ensure all non-judge players have played
-    if (!allPlayersPlayed.value) {
+    if (!allPlayersPlayed.value || isRevealingCards.value) {
       return
     }
     
@@ -346,14 +384,19 @@ export const useGameStore = defineStore('game', () => {
 
     const shuffled = shuffleArray(playedCards)
 
-    // Update Firebase with the revealed cards
-    await update(dbRef(db, `rooms/${roomCode.value}`), {
-      playedCards: shuffled,
-    })
+    isRevealingCards.value = true
+
+    try {
+      // Update Firebase with the revealed cards
+      await update(dbRef(db, `rooms/${roomCode.value}`), {
+        playedCards: shuffled,
+      })
+    } finally {
+      isRevealingCards.value = false
+    }
   }
 
   async function endGame() {
-    if (!isHost.value) return
     gameState.value = 'results'
     await update(dbRef(db, `rooms/${roomCode.value}`), {
       gameState: 'results',
@@ -361,6 +404,8 @@ export const useGameStore = defineStore('game', () => {
   }
 
   async function leaveRoom() {
+    stopListeningToRoom()
+
     if (roomCode.value && playerId.value) {
       // Remove player from room
       await remove(dbRef(db, `rooms/${roomCode.value}/players/${playerId.value}`))
@@ -390,10 +435,8 @@ export const useGameStore = defineStore('game', () => {
     
     // Clear localStorage
     localStorage.removeItem('currentRoomCode')
-    localStorage.removeItem('isHost')
     
     roomCode.value = ''
-    isHost.value = false
     gameState.value = 'home'
     room.value = null
     currentPlayer.value = null
@@ -401,7 +444,6 @@ export const useGameStore = defineStore('game', () => {
 
   async function rejoinRoom() {
     const savedRoomCode = localStorage.getItem('currentRoomCode')
-    const savedIsHost = localStorage.getItem('isHost') === 'true'
     
     if (!savedRoomCode) return false
     
@@ -412,7 +454,6 @@ export const useGameStore = defineStore('game', () => {
       if (!snapshot.exists()) {
         // Room doesn't exist anymore, clear storage
         localStorage.removeItem('currentRoomCode')
-        localStorage.removeItem('isHost')
         return false
       }
       
@@ -431,10 +472,13 @@ export const useGameStore = defineStore('game', () => {
         
         // If game is in progress, player will get cards next round
         await set(dbRef(db, `rooms/${savedRoomCode}/players/${playerId.value}`), playerData)
+        roomData.players[playerId.value] = playerData
       }
       
       roomCode.value = savedRoomCode
-      isHost.value = roomData.host === playerId.value // Update host status based on room data
+
+      room.value = roomData
+      currentPlayer.value = roomData.players[playerId.value]
       listenToRoom(savedRoomCode)
       
       // Set correct game state
@@ -450,7 +494,6 @@ export const useGameStore = defineStore('game', () => {
     } catch (error) {
       console.error('Error rejoining room:', error)
       localStorage.removeItem('currentRoomCode')
-      localStorage.removeItem('isHost')
       return false
     }
   }
@@ -464,6 +507,9 @@ export const useGameStore = defineStore('game', () => {
     gameState,
     room,
     currentPlayer,
+    isSubmittingPlay,
+    isRevealingCards,
+    isResolvingRound,
     
     // Computed
     isJudge,

@@ -148,7 +148,7 @@ async function createRoom() {
 async function joinRoom() {
   try {
     error.value = ''
-    await gameStore.joinRoom(joinCode.value)
+    await gameStore.joinRoom(joinCode.value.trim())
     router.push(gameStore.gameState === 'playing' ? '/game' : '/lobby')
   } catch (err) {
     if (err.message === 'Room not found') {

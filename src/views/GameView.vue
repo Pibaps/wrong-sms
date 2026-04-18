@@ -63,7 +63,7 @@
         <div v-if="allPlayed && !gameStore.room?.playedCards?.length" class="shrink-0">
           <button
             @click="revealCards"
-            :disabled="!allPlayed"
+            :disabled="!allPlayed || gameStore.isRevealingCards"
             class="btn btn-primary w-full"
           >
             Révéler les réponses
@@ -87,7 +87,10 @@
                 v-for="(card, index) in gameStore.room.playedCards"
                 :key="index"
                 @click="selectWinner(index)"
-                class="cursor-pointer transition-all hover:scale-[1.02]"
+                :class="[
+                  'cursor-pointer transition-all hover:scale-[1.02]',
+                  gameStore.isResolvingRound ? 'pointer-events-none opacity-70' : ''
+                ]"
               >
                 <div 
                   class="card-sms card-sms-sent"
@@ -143,7 +146,10 @@
               v-for="(card, index) in gameStore.currentPlayer?.hand"
               :key="index"
               @click="playCard(index)"
-              class="cursor-pointer transition-all hover:scale-[1.02]"
+              :class="[
+                'cursor-pointer transition-all hover:scale-[1.02]',
+                gameStore.isSubmittingPlay ? 'pointer-events-none opacity-70' : ''
+              ]"
             >
               <div class="card-sms card-sms-sent">
                 <p class="text-sm leading-snug">{{ card }}</p>
@@ -234,7 +240,7 @@ watch(() => gameStore.gameState, (newState) => {
 })
 
 async function playCard(index) {
-  if (gameStore.isJudge || gameStore.currentPlayer?.playedCard) return
+  if (gameStore.isJudge || gameStore.currentPlayer?.playedCard || gameStore.isSubmittingPlay) return
   await gameStore.playCard(index)
 }
 
@@ -243,7 +249,7 @@ async function revealCards() {
 }
 
 async function selectWinner(index) {
-  if (!gameStore.isJudge) return
+  if (!gameStore.isJudge || gameStore.isResolvingRound) return
   await gameStore.selectWinner(index)
 }
 
